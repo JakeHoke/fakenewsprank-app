@@ -25,7 +25,7 @@
     <main class="page-main">
 
       <h1 class="page-title">Buy Credits</h1>
-      <p class="page-subtitle">Credits are used to generate fake news articles.</p>
+      <p class="page-subtitle">Credits are used to generate fake news articles. (If you don't see your credits update after purchase, please refresh the page — it may take a minute.)</p>
 
       <!-- Success / cancel banners — shown based on ?success or ?canceled params -->
       <div id="banner-success" class="alert alert-success" style="display:none; max-width:600px; margin-bottom:1.5rem;">
@@ -33,15 +33,6 @@
       </div>
       <div id="banner-cancel" class="alert alert-error" style="display:none; max-width:600px; margin-bottom:1.5rem;">
         Payment canceled. No charge was made.
-      </div>
-
-      <!-- Current balance banner -->
-      <div class="credits-banner">
-        <span class="credits-banner-icon">⚡</span>
-        <div>
-          <div class="credits-banner-count" id="current-balance">—</div>
-          <div class="credits-banner-label">credits remaining</div>
-        </div>
       </div>
 
       <!-- Pricing cards -->
@@ -100,8 +91,6 @@
 
   <script type="module">
     import { initShell } from "./js/app-shell.js";
-    import { db } from "./js/firebase.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const LOG_ENABLED = true;
     function log(...args) {
@@ -118,7 +107,6 @@
     if (params.get("success") === "true") {
       document.getElementById("banner-success").style.display = "block";
       log("Payment success param detected.");
-      // Clean the URL so a refresh doesn't re-show the banner
       history.replaceState(null, "", "/credits");
     }
 
@@ -126,17 +114,6 @@
       document.getElementById("banner-cancel").style.display = "block";
       log("Payment canceled param detected.");
       history.replaceState(null, "", "/credits");
-    }
-
-    // ── Fetch and display current credit balance ──────────────────────────
-    try {
-      const snap = await getDoc(doc(db, "credits", user.uid));
-      const balance = snap.exists() ? (snap.data().credits || 0) : 0;
-      document.getElementById("current-balance").textContent = balance;
-      log("Current balance:", balance);
-    } catch (err) {
-      console.error("[credits.html] Failed to fetch balance:", err);
-      document.getElementById("current-balance").textContent = "0";
     }
 
     // ── Wire up Buy buttons — append client_reference_id to Payment Link ──
