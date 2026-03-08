@@ -666,6 +666,15 @@ p {
   letter-spacing: 0.03em;
 }
 
+.pricing-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8888a8;
+  margin-bottom: 0.75rem;
+}
+
 .pricing-amount {
   font-size: 3rem;
   font-weight: 800;
