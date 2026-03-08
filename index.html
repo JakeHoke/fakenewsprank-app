@@ -23,11 +23,11 @@
 
     waitForAuth().then((user) => {
       if (user) {
-        console.log("[index.html] Authenticated — redirecting to /dashboard.html");
-        window.location.replace("/dashboard.html");
+        console.log("[index.html] Authenticated — redirecting to /dashboard");
+        window.location.replace("/dashboard");
       } else {
-        console.log("[index.html] Not authenticated — redirecting to /login.html");
-        window.location.replace("/login.html");
+        console.log("[index.html] Not authenticated — redirecting to /login");
+        window.location.replace("/login");
       }
     });
   </script>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buy Credits — FakeNewsPrank</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+
+  <!-- Loading overlay -->
+  <div id="app-loading">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+  <!-- Protected content -->
+  <div id="app-content" style="display:none;">
+
+    <!-- Shell injects <header> here -->
+    <div id="shell-header"></div>
+
+    <main class="page-main">
+
+      <h1 class="page-title">Buy Credits</h1>
+      <p class="page-subtitle">Credits are used to generate fake news articles.</p>
+
+      <!-- Current balance banner -->
+      <div class="credits-banner">
+        <span class="credits-banner-icon">⚡</span>
+        <div>
+          <div class="credits-banner-count" id="current-balance">—</div>
+          <div class="credits-banner-label">credits remaining</div>
+        </div>
+      </div>
+
+      <!-- Pricing cards -->
+      <div class="pricing-grid">
+
+        <div class="pricing-card">
+          <div class="pricing-amount">10</div>
+          <div class="pricing-unit">credits</div>
+          <div class="pricing-price">$1.99</div>
+          <p class="pricing-desc">Great for trying it out.</p>
+          <button class="btn btn-secondary pricing-btn" data-credits="10" data-price="1.99">
+            Buy 10 Credits
+          </button>
+        </div>
+
+        <div class="pricing-card pricing-card--featured">
+          <div class="pricing-badge">Most Popular</div>
+          <div class="pricing-amount">50</div>
+          <div class="pricing-unit">credits</div>
+          <div class="pricing-price">$7.99</div>
+          <p class="pricing-desc">Best value for regular use.</p>
+          <button class="btn btn-primary pricing-btn" data-credits="50" data-price="7.99">
+            Buy 50 Credits
+          </button>
+        </div>
+
+        <div class="pricing-card">
+          <div class="pricing-amount">150</div>
+          <div class="pricing-unit">credits</div>
+          <div class="pricing-price">$19.99</div>
+          <p class="pricing-desc">For power users and teams.</p>
+          <button class="btn btn-secondary pricing-btn" data-credits="150" data-price="19.99">
+            Buy 150 Credits
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Coming soon notice -->
+      <p class="credits-coming-soon">
+        Payments coming soon — check back shortly to purchase credits.
+      </p>
+
+    </main>
+  </div>
+
+  <script type="module">
+    import { initShell } from "./js/app-shell.js";
+    import { db } from "./js/firebase.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const LOG_ENABLED = true;
+    function log(...args) {
+      if (LOG_ENABLED) console.log("[credits.html]", ...args);
+    }
+
+    log("Initializing protected page…");
+    const user = await initShell();
+    log("Page ready for:", user.email);
+
+    // ── Show current balance ──────────────────────────────────
+    try {
+      const snap = await getDoc(doc(db, "credits", user.uid));
+      const balance = snap.exists() ? (snap.data().credits || 0) : 0;
+      document.getElementById("current-balance").textContent = balance;
+      log("Current balance:", balance);
+    } catch (err) {
+      console.error("[credits.html] Failed to fetch balance:", err);
+      document.getElementById("current-balance").textContent = "0";
+    }
+
+    // ── Pricing button handlers ───────────────────────────────
+    // Wired up ready for payment integration (Stripe, etc.)
+    document.querySelectorAll(".pricing-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const credits = btn.dataset.credits;
+        const price   = btn.dataset.price;
+        log(`Buy clicked: ${credits} credits for $${price}`);
+        // TODO: Trigger payment flow here (e.g. Stripe Checkout)
+        alert(`Payment integration coming soon!\n\n${credits} credits for $${price}`);
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -40,8 +40,8 @@ export function waitForAuth() {
 export async function requireAuth() {
   const user = await waitForAuth();
   if (!user) {
-    log("requireAuth: not authenticated — redirecting to /login.html");
-    window.location.replace("/login.html");
+    log("requireAuth: not authenticated — redirecting to /login");
+    window.location.replace("/login");
     // Return a never-resolving promise so the rest of the page
     // script does not execute while the redirect fires.
     return new Promise(() => {});
@@ -51,16 +51,16 @@ export async function requireAuth() {
 }
 
 // ── redirectIfAuthenticated() ────────────────────────────────
-// Call at the top of login.html and signup.html.
+// Call at the top of login.html.
 // If a user IS already signed in, redirect them to /dashboard.html
 // so they never land on the auth forms unnecessarily.
 export async function redirectIfAuthenticated() {
   const user = await waitForAuth();
   if (user) {
     log(
-      "redirectIfAuthenticated: already signed in — redirecting to /dashboard.html"
+      "redirectIfAuthenticated: already signed in — redirecting to /dashboard"
     );
-    window.location.replace("/dashboard.html");
+    window.location.replace("/dashboard");
     return new Promise(() => {});
   }
   log("redirectIfAuthenticated: no existing session.");
@@ -75,7 +75,7 @@ export async function logoutUser() {
   } catch (err) {
     console.error("[auth.js] logoutUser error:", err);
   }
-  window.location.replace("/login.html");
+  window.location.replace("/login");
 }
 
 // ── mapAuthError() ───────────────────────────────────────────

@@ -113,7 +113,7 @@
       try {
         const result = await signInWithPopup(auth, provider);
         log("Sign-in successful:", result.user.email);
-        window.location.replace("/dashboard.html");
+        window.location.replace("/dashboard");
       } catch (err) {
         log("Sign-in error:", err.code, err.message);
         // Silently reset if the user just closed the popup

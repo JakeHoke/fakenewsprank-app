@@ -1,0 +1,33 @@
+<!--
+  header.html
+  Shared header component. Fetched and injected by app-shell.js into
+  every protected page. Dynamic values (email, credits, active nav)
+  are set by app-shell.js after injection — do not hardcode them here.
+-->
+<header class="app-header">
+
+  <a href="/dashboard" class="header-brand">
+    <span class="brand-icon">📰</span>
+    <span class="brand-name">FakeNewsPrank</span>
+  </a>
+
+  <nav class="header-nav">
+    <a href="/dashboard" class="nav-link" data-nav="dashboard">Dashboard</a>
+    <a href="/create"    class="nav-link" data-nav="create">Create</a>
+    <a href="/account"   class="nav-link" data-nav="account">Account</a>
+  </nav>
+
+  <div class="header-user">
+    <div class="header-credits">
+      <span class="credits-balance">
+        <span class="credits-icon">⚡</span>
+        <span id="header-credits-count">—</span>
+        <span class="credits-label">credits</span>
+      </span>
+      <a href="/credits" class="btn-buy-credits">Buy More</a>
+    </div>
+    <span class="user-email" id="header-user-email"></span>
+    <button id="logout-btn" class="btn-logout">Sign Out</button>
+  </div>
+
+</header>

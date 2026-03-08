@@ -4,20 +4,20 @@
 //
 // Usage in a protected HTML page:
 //   <script type="module">
-//     import { initShell } from "./app-shell.js";
+//     import { initShell } from "./js/app-shell.js";
 //     const user = await initShell();
-//     // user is now guaranteed to be authenticated
 //   </script>
 //
-// The page HTML should contain:
-//   - An element with id="shell-header"  (shell injects nav here)
-//   - An element with id="app-loading"   (shown while auth resolves)
-//   - An element with id="app-content"   (hidden until auth resolves)
-//   - Optionally id="logout-btn"         (wired automatically)
+// The page HTML must contain:
+//   - id="shell-header"  — header component is fetched and injected here
+//   - id="app-loading"   — shown while auth + header load
+//   - id="app-content"   — hidden until everything is ready
 // ============================================================
 
 import { requireAuth } from "./auth.js";
-import { logoutUser } from "./auth.js";
+import { logoutUser }  from "./auth.js";
+import { db }          from "./firebase.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ── Logging flag ─────────────────────────────────────────────
 const SHELL_LOGGING = true;
@@ -26,57 +26,69 @@ function log(...args) {
   if (SHELL_LOGGING) console.log("[app-shell.js]", ...args);
 }
 
-// ── Nav link definitions ─────────────────────────────────────
-const NAV_LINKS = [
-  { href: "/dashboard.html", label: "Dashboard" },
-  { href: "/create.html", label: "Create" },
-  { href: "/account.html", label: "Account" },
-];
+// ── fetchCredits() ────────────────────────────────────────────
+// Reads credits/{uid}.credits from Firestore. Returns 0 on any failure.
+async function fetchCredits(uid) {
+  try {
+    const snap = await getDoc(doc(db, "credits", uid));
+    const balance = snap.exists() ? (snap.data().credits || 0) : 0;
+    log("fetchCredits:", balance);
+    return balance;
+  } catch (err) {
+    console.error("[app-shell.js] fetchCredits error:", err);
+    return 0;
+  }
+}
 
-// ── buildHeader() ────────────────────────────────────────────
-// Injects the shared app header + nav into #shell-header.
-function buildHeader(userEmail) {
+// ── loadHeader() ──────────────────────────────────────────────
+// Fetches /header.html and injects it into #shell-header.
+async function loadHeader() {
   const container = document.getElementById("shell-header");
   if (!container) {
-    log("buildHeader: no #shell-header element found — skipping.");
+    log("loadHeader: no #shell-header found — skipping.");
     return;
   }
 
-  // Mark the active link by comparing the current path
-  const currentPath = window.location.pathname;
+  try {
+    const res = await fetch("/header.html");
+    if (!res.ok) throw new Error(`fetch /header.html → ${res.status}`);
+    container.innerHTML = await res.text();
+    log("loadHeader: header.html injected.");
+  } catch (err) {
+    console.error("[app-shell.js] loadHeader error:", err);
+  }
+}
 
-  const navItems = NAV_LINKS.map(({ href, label }) => {
-    const isActive = currentPath.endsWith(href.replace("/", "")) ? "active" : "";
-    return `<a href="${href}" class="nav-link ${isActive}">${label}</a>`;
-  }).join("");
+// ── hydrateHeader() ───────────────────────────────────────────
+// Fills in the dynamic values (email, credits) and marks the active nav link
+// after header.html has been injected into the DOM.
+function hydrateHeader(userEmail, credits) {
+  // User email
+  const emailEl = document.getElementById("header-user-email");
+  if (emailEl) {
+    emailEl.textContent = userEmail;
+    emailEl.title = userEmail;
+  }
 
-  container.innerHTML = `
-    <header class="app-header">
-      <div class="header-brand">
-        <span class="brand-icon">📰</span>
-        <span class="brand-name">FakeNewsPrank</span>
-      </div>
-      <nav class="header-nav">
-        ${navItems}
-      </nav>
-      <div class="header-user">
-        <span class="user-email" title="${userEmail}">${userEmail}</span>
-        <button id="logout-btn" class="btn-logout">Sign Out</button>
-      </div>
-    </header>
-  `;
+  // Credits balance
+  const creditsEl = document.getElementById("header-credits-count");
+  if (creditsEl) creditsEl.textContent = credits;
 
-  log("buildHeader: header injected for", userEmail);
+  // Active nav link — match current path segment to data-nav attribute
+  const segment = window.location.pathname.replace(/^\//, "").replace(/\/$/, "") || "dashboard";
+  document.querySelectorAll(".nav-link[data-nav]").forEach((link) => {
+    link.classList.toggle("active", link.dataset.nav === segment);
+  });
+
+  log("hydrateHeader: email =", userEmail, "| credits =", credits, "| active =", segment);
 }
 
 // ── wireLogout() ─────────────────────────────────────────────
-// Attaches click handler to #logout-btn (wherever it lives in the DOM).
 function wireLogout() {
-  // Query after header injection so the injected button is available.
   const btn = document.getElementById("logout-btn");
   if (btn) {
     btn.addEventListener("click", () => {
-      log("wireLogout: logout button clicked.");
+      log("wireLogout: clicked.");
       logoutUser();
     });
   } else {
@@ -85,37 +97,33 @@ function wireLogout() {
 }
 
 // ── showContent() ────────────────────────────────────────────
-// Hides the loading overlay and reveals app content.
 function showContent() {
   const loading = document.getElementById("app-loading");
   const content = document.getElementById("app-content");
-
   if (loading) loading.style.display = "none";
   if (content) content.style.display = "";
-
-  log("showContent: loading hidden, content visible.");
+  log("showContent: content visible.");
 }
 
 // ── initShell() ──────────────────────────────────────────────
-// Main entry point. Call this at the top of every protected page.
-// Handles auth gating, header injection, loading state, and logout wiring.
-// Returns the authenticated Firebase user object.
+// Main entry point for every protected page.
+// Runs auth gate, fetches header + credits in parallel, hydrates, reveals content.
+// Returns the authenticated Firebase user.
 export async function initShell() {
-  log("initShell: starting auth gate...");
+  log("initShell: starting...");
 
-  // Auth gate — redirects to /login.html if not signed in.
-  // This never returns if unauthenticated.
+  // Auth gate — never returns if unauthenticated (redirects to /login)
   const user = await requireAuth();
+  log("initShell: authenticated as", user.email);
 
-  log("initShell: user confirmed:", user.email);
+  // Fetch header HTML and credits balance in parallel
+  const [credits] = await Promise.all([
+    fetchCredits(user.uid),
+    loadHeader(),
+  ]);
 
-  // Inject header now that we have the user
-  buildHeader(user.email);
-
-  // Wire logout button (may be in injected header or page HTML)
+  hydrateHeader(user.email, credits);
   wireLogout();
-
-  // Reveal content
   showContent();
 
   return user;
