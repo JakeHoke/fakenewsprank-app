@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign In — FakeNewsPrank</title>
   <link rel="stylesheet" href="./css/styles.css" />
-
-  <!-- Google Identity Services — renders the official "Sign in with Google" button -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -29,33 +26,22 @@
           <div class="logo-title">FakeNewsPrank</div>
           <div class="logo-sub">app.fakenewsprank.com</div>
         </div>
-        
+
+        <p class="auth-signin-label">Sign in to continue</p>
+
         <!-- Error alert -->
         <div id="error-alert" class="alert alert-error" role="alert"></div>
 
-        <!--
-          Google GSI rendered button.
-          data-client_id  — your Google OAuth client ID (same as Firebase authDomain project).
-          data-callback   — global function called with the GSI credential response.
-          data-width      — matches the card width so the button fills the column.
-        -->
-        <div
-          id="g_id_onload"
-          data-client_id="197846073131-REPLACE_WITH_OAUTH_CLIENT_ID.apps.googleusercontent.com"
-          data-callback="handleGoogleSignIn"
-          data-auto_prompt="false"
-        ></div>
-
-        <div
-          class="g_id_signin"
-          data-type="standard"
-          data-shape="rectangular"
-          data-theme="outline"
-          data-text="continue_with"
-          data-size="large"
-          data-logo_alignment="left"
-          data-width="340"
-        ></div>
+        <!-- Google sign-in button -->
+        <button id="google-signin-btn" class="btn-google">
+          <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
+        </button>
 
       </div>
     </div>
@@ -66,45 +52,78 @@
     import { auth } from "./js/firebase.js";
     import {
       GoogleAuthProvider,
-      signInWithCredential,
+      signInWithPopup,
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const loading    = document.getElementById("app-loading");
     const content    = document.getElementById("app-content");
+    const googleBtn  = document.getElementById("google-signin-btn");
     const errorAlert = document.getElementById("error-alert");
+
+    // ── Logging flag ──────────────────────────────────────────
+    const LOG_ENABLED = true;
+    function log(...args) {
+      if (LOG_ENABLED) console.log("[login.html]", ...args);
+    }
 
     // ── Helpers ───────────────────────────────────────────────
     function showError(msg) {
       errorAlert.textContent = msg;
       errorAlert.classList.add("visible");
-      console.warn("[login.html] Auth error:", msg);
+      log("Auth error:", msg);
+    }
+
+    function clearError() {
+      errorAlert.textContent = "";
+      errorAlert.classList.remove("visible");
+    }
+
+    function setLoading(isLoading) {
+      googleBtn.disabled = isLoading;
+      // Restore the icon + text when re-enabling
+      if (!isLoading) {
+        googleBtn.innerHTML = `
+          <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google`;
+      } else {
+        googleBtn.textContent = "Signing in…";
+      }
     }
 
     // ── Auth gate — redirect if already signed in ─────────────
-    console.log("[login.html] Checking for existing session…");
+    log("Checking for existing session…");
     await redirectIfAuthenticated();
 
     loading.style.display = "none";
     content.style.display = "";
 
-    // ── GSI callback — called by Google after the user picks an account ──
-    // Must be on window so the GSI script can invoke it.
-    window.handleGoogleSignIn = async (googleResponse) => {
-      console.log("[login.html] GSI credential received, signing into Firebase…");
+    // ── Google sign-in via popup ──────────────────────────────
+    const provider = new GoogleAuthProvider();
+
+    googleBtn.addEventListener("click", async () => {
+      clearError();
+      setLoading(true);
+      log("Google sign-in clicked, opening popup…");
 
       try {
-        // Exchange the GSI ID token for a Firebase credential
-        const firebaseCredential = GoogleAuthProvider.credential(googleResponse.credential);
-        const result = await signInWithCredential(auth, firebaseCredential);
-        console.log("[login.html] Firebase sign-in successful:", result.user.email);
+        const result = await signInWithPopup(auth, provider);
+        log("Sign-in successful:", result.user.email);
         window.location.replace("/dashboard.html");
       } catch (err) {
-        console.error("[login.html] Firebase sign-in error:", err.code, err.message);
-        showError(mapAuthError(err.code));
+        log("Sign-in error:", err.code, err.message);
+        // Silently reset if the user just closed the popup
+        if (err.code !== "auth/popup-closed-by-user" && err.code !== "auth/cancelled-popup-request") {
+          showError(mapAuthError(err.code));
+        }
+        setLoading(false);
       }
-    };
+    });
   </script>
 
 </body>
 </html>
-
