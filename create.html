@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Create Article — FakeNewsPrank</title>
+  <title>Buy Credits — FakeNewsPrank</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -24,49 +24,139 @@
 
     <main class="page-main">
 
-      <h1 class="page-title">Create Your Article</h1>
-      <p class="page-subtitle">Build a convincing fake news story to prank your friends.</p>
+      <h1 class="page-title">Buy Credits</h1>
+      <p class="page-subtitle">Credits are used to generate fake news articles.</p>
 
-      <!-- Coming-soon placeholder — replace with the real form when ready -->
-      <div class="coming-soon">
-        <span class="cs-icon">🛠️</span>
-        <h2>Article Builder — Coming Soon</h2>
-        <p>
-          The fake-news article generator is currently in development.
-          Check back soon to start creating your first prank article.
-        </p>
+      <!-- Success / cancel banners — shown based on ?success or ?canceled params -->
+      <div id="banner-success" class="alert alert-success" style="display:none; max-width:600px; margin-bottom:1.5rem;">
+        Payment successful! Your credits have been added — it may take a few seconds to reflect.
+      </div>
+      <div id="banner-cancel" class="alert alert-error" style="display:none; max-width:600px; margin-bottom:1.5rem;">
+        Payment canceled. No charge was made.
       </div>
 
-      <!--
-        FUTURE: Replace the coming-soon block above with the real
-        article-creation form.  Scaffold below as a starting point:
+      <!-- Current balance banner -->
+      <div class="credits-banner">
+        <span class="credits-banner-icon">⚡</span>
+        <div>
+          <div class="credits-banner-count" id="current-balance">—</div>
+          <div class="credits-banner-label">credits remaining</div>
+        </div>
+      </div>
 
-        <form id="article-form">
-          <div class="form-group">
-            <label for="headline">Headline</label>
-            <input type="text" id="headline" placeholder="Enter a shocking headline…" />
-          </div>
-          <div class="form-group">
-            <label for="topic">Topic</label>
-            <input type="text" id="topic" placeholder="e.g. Local news, Politics, Sports…" />
-          </div>
-          <button type="submit" class="btn btn-primary" style="width:auto;">
-            Generate Article
+      <!-- Pricing cards -->
+      <div class="pricing-grid">
+
+        <!-- Starter -->
+        <div class="pricing-card">
+          <div class="pricing-name">Starter</div>
+          <div class="pricing-amount">5</div>
+          <div class="pricing-unit">credits</div>
+          <div class="pricing-price">$4.99</div>
+          <p class="pricing-desc">Perfect for a quick prank.</p>
+          <button
+            class="btn btn-secondary pricing-btn"
+            data-link="https://buy.stripe.com/test_aFabJ172j0847Fy2g9dEs00"
+          >
+            Buy 5 Credits
           </button>
-        </form>
-      -->
+        </div>
+
+        <!-- Group Chat — featured -->
+        <div class="pricing-card pricing-card--featured">
+          <div class="pricing-badge">Most Popular</div>
+          <div class="pricing-name">Group Chat</div>
+          <div class="pricing-amount">15</div>
+          <div class="pricing-unit">credits</div>
+          <div class="pricing-price">$11.99</div>
+          <p class="pricing-desc">Great for keeping the group chat going.</p>
+          <button
+            class="btn btn-primary pricing-btn"
+            data-link="https://buy.stripe.com/test_cNifZh2M3aMIe3W8ExdEs01"
+          >
+            Buy 15 Credits
+          </button>
+        </div>
+
+        <!-- Chaos Mode -->
+        <div class="pricing-card">
+          <div class="pricing-name">Chaos Mode</div>
+          <div class="pricing-amount">50</div>
+          <div class="pricing-unit">credits</div>
+          <div class="pricing-price">$29.99</div>
+          <p class="pricing-desc">Go all in. Maximum chaos.</p>
+          <button
+            class="btn btn-secondary pricing-btn"
+            data-link="https://buy.stripe.com/test_bJecN5fyPf2YaRKdYRdEs02"
+          >
+            Buy 50 Credits
+          </button>
+        </div>
+
+      </div>
 
     </main>
   </div>
 
   <script type="module">
     import { initShell } from "./js/app-shell.js";
+    import { db } from "./js/firebase.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    console.log("[create.html] Initializing protected page…");
+    const LOG_ENABLED = true;
+    function log(...args) {
+      if (LOG_ENABLED) console.log("[credits.html]", ...args);
+    }
 
+    log("Initializing protected page…");
     const user = await initShell();
+    log("Page ready for:", user.email);
 
-    console.log("[create.html] Page ready for:", user.email);
+    // ── Show success / cancel banners based on URL params ─────────────────
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("success") === "true") {
+      document.getElementById("banner-success").style.display = "block";
+      log("Payment success param detected.");
+      // Clean the URL so a refresh doesn't re-show the banner
+      history.replaceState(null, "", "/credits");
+    }
+
+    if (params.get("canceled") === "true") {
+      document.getElementById("banner-cancel").style.display = "block";
+      log("Payment canceled param detected.");
+      history.replaceState(null, "", "/credits");
+    }
+
+    // ── Fetch and display current credit balance ──────────────────────────
+    try {
+      const snap = await getDoc(doc(db, "credits", user.uid));
+      const balance = snap.exists() ? (snap.data().credits || 0) : 0;
+      document.getElementById("current-balance").textContent = balance;
+      log("Current balance:", balance);
+    } catch (err) {
+      console.error("[credits.html] Failed to fetch balance:", err);
+      document.getElementById("current-balance").textContent = "0";
+    }
+
+    // ── Wire up Buy buttons — append client_reference_id to Payment Link ──
+    // Stripe passes client_reference_id through to the webhook so we know
+    // which Firestore user to credit after a successful payment.
+    document.querySelectorAll(".pricing-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const baseLink = btn.dataset.link;
+
+        if (!baseLink || baseLink.startsWith("REPLACE_")) {
+          console.warn("[credits.html] Payment link not configured for this button.");
+          alert("Payment link not yet configured — check back soon.");
+          return;
+        }
+
+        const url = `${baseLink}?client_reference_id=${user.uid}`;
+        log("Redirecting to Stripe Payment Link:", url);
+        window.location.href = url;
+      });
+    });
   </script>
 
 </body>
