@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FakeNewsPrank App</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+
+  <!-- Full-screen loader shown while auth state is determined -->
+  <div id="app-loading">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { waitForAuth } from "./js/auth.js";
+
+    console.log("[index.html] Checking auth state…");
+
+    waitForAuth().then((user) => {
+      if (user) {
+        console.log("[index.html] Authenticated — redirecting to /dashboard.html");
+        window.location.replace("/dashboard.html");
+      } else {
+        console.log("[index.html] Not authenticated — redirecting to /login.html");
+        window.location.replace("/login.html");
+      }
+    });
+  </script>
+
+</body>
+</html>

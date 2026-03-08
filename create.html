@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Article — FakeNewsPrank</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+
+  <!-- Loading overlay -->
+  <div id="app-loading">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+  <!-- Protected content -->
+  <div id="app-content" style="display:none;">
+
+    <!-- Shell injects <header> here -->
+    <div id="shell-header"></div>
+
+    <main class="page-main">
+
+      <h1 class="page-title">Create Your Article</h1>
+      <p class="page-subtitle">Build a convincing fake news story to prank your friends.</p>
+
+      <!-- Coming-soon placeholder — replace with the real form when ready -->
+      <div class="coming-soon">
+        <span class="cs-icon">🛠️</span>
+        <h2>Article Builder — Coming Soon</h2>
+        <p>
+          The fake-news article generator is currently in development.
+          Check back soon to start creating your first prank article.
+        </p>
+      </div>
+
+      <!--
+        FUTURE: Replace the coming-soon block above with the real
+        article-creation form.  Scaffold below as a starting point:
+
+        <form id="article-form">
+          <div class="form-group">
+            <label for="headline">Headline</label>
+            <input type="text" id="headline" placeholder="Enter a shocking headline…" />
+          </div>
+          <div class="form-group">
+            <label for="topic">Topic</label>
+            <input type="text" id="topic" placeholder="e.g. Local news, Politics, Sports…" />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:auto;">
+            Generate Article
+          </button>
+        </form>
+      -->
+
+    </main>
+  </div>
+
+  <script type="module">
+    import { initShell } from "./js/app-shell.js";
+
+    console.log("[create.html] Initializing protected page…");
+
+    const user = await initShell();
+
+    console.log("[create.html] Page ready for:", user.email);
+  </script>
+
+</body>
+</html>

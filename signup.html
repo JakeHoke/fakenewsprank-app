@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account — FakeNewsPrank</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+
+  <!-- Loading overlay -->
+  <div id="app-loading">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+  <!-- Signup card — hidden until auth state resolves -->
+  <div id="app-content" style="display:none;">
+    <div class="page-center">
+      <div class="auth-card">
+
+        <div class="auth-logo">
+          <span class="logo-icon">📰</span>
+          <div class="logo-title">FakeNewsPrank</div>
+          <div class="logo-sub">app.fakenewsprank.com</div>
+        </div>
+
+        <h1>Create account</h1>
+        <p class="auth-subtitle">Get started — it only takes a moment.</p>
+
+        <!-- Error / success alerts -->
+        <div id="error-alert" class="alert alert-error" role="alert"></div>
+
+        <form id="signup-form" novalidate>
+          <div class="form-group">
+            <label for="email">Email address</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Min. 6 characters"
+              autocomplete="new-password"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="confirm-password">Confirm password</label>
+            <input
+              type="password"
+              id="confirm-password"
+              name="confirm-password"
+              placeholder="Re-enter your password"
+              autocomplete="new-password"
+              required
+            />
+          </div>
+
+          <button type="submit" id="submit-btn" class="btn btn-primary">
+            Create Account
+          </button>
+        </form>
+
+        <p class="auth-footer">
+          Already have an account?
+          <a href="/login.html">Sign in</a>
+        </p>
+
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { redirectIfAuthenticated, mapAuthError } from "./js/auth.js";
+    import { auth } from "./js/firebase.js";
+    import {
+      createUserWithEmailAndPassword,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const loading      = document.getElementById("app-loading");
+    const content      = document.getElementById("app-content");
+    const form         = document.getElementById("signup-form");
+    const emailEl      = document.getElementById("email");
+    const passEl       = document.getElementById("password");
+    const confirmEl    = document.getElementById("confirm-password");
+    const submitBtn    = document.getElementById("submit-btn");
+    const errorAlert   = document.getElementById("error-alert");
+
+    // ── Helpers ───────────────────────────────────────────────
+    function showError(msg) {
+      errorAlert.textContent = msg;
+      errorAlert.classList.add("visible");
+      console.warn("[signup.html] Validation/auth error:", msg);
+    }
+
+    function clearError() {
+      errorAlert.textContent = "";
+      errorAlert.classList.remove("visible");
+    }
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      submitBtn.textContent = isLoading ? "Creating account…" : "Create Account";
+    }
+
+    // ── Auth gate — redirect if already signed in ─────────────
+    console.log("[signup.html] Checking for existing session…");
+    await redirectIfAuthenticated();
+
+    loading.style.display = "none";
+    content.style.display = "";
+
+    // ── Form submit ───────────────────────────────────────────
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearError();
+
+      const email    = emailEl.value.trim();
+      const password = passEl.value;
+      const confirm  = confirmEl.value;
+
+      // Client-side validation
+      if (!email || !password || !confirm) {
+        showError("Please fill in all fields.");
+        return;
+      }
+
+      if (password !== confirm) {
+        showError("Passwords do not match.");
+        passEl.value = "";
+        confirmEl.value = "";
+        passEl.focus();
+        return;
+      }
+
+      if (password.length < 6) {
+        showError("Password must be at least 6 characters.");
+        return;
+      }
+
+      setLoading(true);
+      console.log("[signup.html] Attempting account creation for:", email);
+
+      try {
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log("[signup.html] Account created:", credential.user.email);
+        window.location.replace("/dashboard.html");
+      } catch (err) {
+        console.error("[signup.html] Signup error:", err.code, err.message);
+        showError(mapAuthError(err.code));
+        setLoading(false);
+      }
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — FakeNewsPrank</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+
+  <!-- Loading overlay — hides content until auth state is confirmed -->
+  <div id="app-loading">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+  <!-- App content — revealed by initShell() after auth is confirmed -->
+  <div id="app-content" style="display:none;">
+
+    <!-- Shell injects <header> here -->
+    <div id="shell-header"></div>
+
+    <main class="page-main">
+
+      <!-- Welcome banner -->
+      <div class="welcome-banner">
+        <h2>Welcome back! 👋</h2>
+        <p id="welcome-email">Loading your account…</p>
+      </div>
+
+      <!-- Quick-action cards -->
+      <div class="card-grid">
+
+        <div class="card">
+          <span class="card-icon">✍️</span>
+          <h3>Create an Article</h3>
+          <p>Generate a convincing fake news story to share with friends.</p>
+          <a href="/create.html" class="btn btn-primary" style="display:inline-flex;width:auto;padding:0.5rem 1rem;">
+            Get Started
+          </a>
+        </div>
+
+        <div class="card">
+          <span class="card-icon">📋</span>
+          <h3>My Articles</h3>
+          <p>View and manage all the articles you've created.</p>
+          <span class="btn btn-secondary" style="display:inline-flex;width:auto;padding:0.5rem 1rem;opacity:0.5;cursor:default;">
+            Coming Soon
+          </span>
+        </div>
+
+        <div class="card">
+          <span class="card-icon">⚙️</span>
+          <h3>Account Settings</h3>
+          <p>Manage your profile, password, and billing information.</p>
+          <a href="/account.html" class="btn btn-secondary" style="display:inline-flex;width:auto;padding:0.5rem 1rem;">
+            View Account
+          </a>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module">
+    import { initShell } from "./js/app-shell.js";
+
+    console.log("[dashboard.html] Initializing protected page…");
+
+    const user = await initShell();
+
+    // Update welcome message with user's real email
+    const welcomeEl = document.getElementById("welcome-email");
+    if (welcomeEl) {
+      welcomeEl.textContent = `Signed in as ${user.email}`;
+    }
+
+    console.log("[dashboard.html] Dashboard ready for:", user.email);
+  </script>
+
+</body>
+</html>
