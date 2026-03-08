@@ -27,6 +27,14 @@
       <h1 class="page-title">Buy Credits</h1>
       <p class="page-subtitle">Credits are used to generate fake news articles.</p>
 
+      <!-- Success / cancel banners — shown based on ?success or ?canceled params -->
+      <div id="banner-success" class="alert alert-success" style="display:none; max-width:600px; margin-bottom:1.5rem;">
+        Payment successful! Your credits have been added — it may take a few seconds to reflect.
+      </div>
+      <div id="banner-cancel" class="alert alert-error" style="display:none; max-width:600px; margin-bottom:1.5rem;">
+        Payment canceled. No charge was made.
+      </div>
+
       <!-- Current balance banner -->
       <div class="credits-banner">
         <span class="credits-banner-icon">⚡</span>
@@ -39,43 +47,53 @@
       <!-- Pricing cards -->
       <div class="pricing-grid">
 
+        <!-- Starter -->
         <div class="pricing-card">
-          <div class="pricing-amount">10</div>
+          <div class="pricing-name">Starter</div>
+          <div class="pricing-amount">5</div>
           <div class="pricing-unit">credits</div>
-          <div class="pricing-price">$1.99</div>
-          <p class="pricing-desc">Great for trying it out.</p>
-          <button class="btn btn-secondary pricing-btn" data-credits="10" data-price="1.99">
-            Buy 10 Credits
+          <div class="pricing-price">$4.99</div>
+          <p class="pricing-desc">Perfect for a quick prank.</p>
+          <button
+            class="btn btn-secondary pricing-btn"
+            data-link="https://buy.stripe.com/test_aFabJ172j0847Fy2g9dEs00"
+          >
+            Buy 5 Credits
           </button>
         </div>
 
+        <!-- Group Chat — featured -->
         <div class="pricing-card pricing-card--featured">
           <div class="pricing-badge">Most Popular</div>
+          <div class="pricing-name">Group Chat</div>
+          <div class="pricing-amount">15</div>
+          <div class="pricing-unit">credits</div>
+          <div class="pricing-price">$11.99</div>
+          <p class="pricing-desc">Great for keeping the group chat going.</p>
+          <button
+            class="btn btn-primary pricing-btn"
+            data-link="https://buy.stripe.com/test_cNifZh2M3aMIe3W8ExdEs01"
+          >
+            Buy 15 Credits
+          </button>
+        </div>
+
+        <!-- Chaos Mode -->
+        <div class="pricing-card">
+          <div class="pricing-name">Chaos Mode</div>
           <div class="pricing-amount">50</div>
           <div class="pricing-unit">credits</div>
-          <div class="pricing-price">$7.99</div>
-          <p class="pricing-desc">Best value for regular use.</p>
-          <button class="btn btn-primary pricing-btn" data-credits="50" data-price="7.99">
+          <div class="pricing-price">$29.99</div>
+          <p class="pricing-desc">Go all in. Maximum chaos.</p>
+          <button
+            class="btn btn-secondary pricing-btn"
+            data-link="https://buy.stripe.com/test_bJecN5fyPf2YaRKdYRdEs02"
+          >
             Buy 50 Credits
           </button>
         </div>
 
-        <div class="pricing-card">
-          <div class="pricing-amount">150</div>
-          <div class="pricing-unit">credits</div>
-          <div class="pricing-price">$19.99</div>
-          <p class="pricing-desc">For power users and teams.</p>
-          <button class="btn btn-secondary pricing-btn" data-credits="150" data-price="19.99">
-            Buy 150 Credits
-          </button>
-        </div>
-
       </div>
-
-      <!-- Coming soon notice -->
-      <p class="credits-coming-soon">
-        Payments coming soon — check back shortly to purchase credits.
-      </p>
 
     </main>
   </div>
@@ -94,7 +112,23 @@
     const user = await initShell();
     log("Page ready for:", user.email);
 
-    // ── Show current balance ──────────────────────────────────
+    // ── Show success / cancel banners based on URL params ─────────────────
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("success") === "true") {
+      document.getElementById("banner-success").style.display = "block";
+      log("Payment success param detected.");
+      // Clean the URL so a refresh doesn't re-show the banner
+      history.replaceState(null, "", "/credits");
+    }
+
+    if (params.get("canceled") === "true") {
+      document.getElementById("banner-cancel").style.display = "block";
+      log("Payment canceled param detected.");
+      history.replaceState(null, "", "/credits");
+    }
+
+    // ── Fetch and display current credit balance ──────────────────────────
     try {
       const snap = await getDoc(doc(db, "credits", user.uid));
       const balance = snap.exists() ? (snap.data().credits || 0) : 0;
@@ -105,15 +139,22 @@
       document.getElementById("current-balance").textContent = "0";
     }
 
-    // ── Pricing button handlers ───────────────────────────────
-    // Wired up ready for payment integration (Stripe, etc.)
+    // ── Wire up Buy buttons — append client_reference_id to Payment Link ──
+    // Stripe passes client_reference_id through to the webhook so we know
+    // which Firestore user to credit after a successful payment.
     document.querySelectorAll(".pricing-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const credits = btn.dataset.credits;
-        const price   = btn.dataset.price;
-        log(`Buy clicked: ${credits} credits for $${price}`);
-        // TODO: Trigger payment flow here (e.g. Stripe Checkout)
-        alert(`Payment integration coming soon!\n\n${credits} credits for $${price}`);
+        const baseLink = btn.dataset.link;
+
+        if (!baseLink || baseLink.startsWith("REPLACE_")) {
+          console.warn("[credits.html] Payment link not configured for this button.");
+          alert("Payment link not yet configured — check back soon.");
+          return;
+        }
+
+        const url = `${baseLink}?client_reference_id=${user.uid}`;
+        log("Redirecting to Stripe Payment Link:", url);
+        window.location.href = url;
       });
     });
   </script>
