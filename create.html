@@ -32,6 +32,21 @@
     </div>
   </div>
 
+  <!-- ── ToS check overlay (shown during moderation + creation) ──── -->
+  <div id="tos-overlay" class="modal-overlay" aria-live="polite">
+    <div class="modal" style="text-align:center;max-width:420px;">
+      <div class="spinner-ring" style="margin:0 auto 1.2rem;"></div>
+      <div class="modal-title" style="margin-bottom:0.6rem;">Your article is being created</div>
+      <div class="modal-body" style="color:#b0b0d0;line-height:1.6;">
+        First, we're checking your submission against our Terms of Service.
+        <br /><br />
+        <span style="font-size:0.82rem;color:#6868a0;">
+          If your input is rejected, <strong style="color:#c8c8e8;">no credits will be used.</strong>
+        </span>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Page shell ─────────────────────────────────────────── -->
   <div id="app-content" style="display:none">
     <div id="shell-header"></div>
@@ -125,6 +140,7 @@
     const confirmModal  = document.getElementById("confirm-modal");
     const modalCancel   = document.getElementById("modal-cancel");
     const modalConfirm  = document.getElementById("modal-confirm");
+    const tosOverlay    = document.getElementById("tos-overlay");
 
     // ── State ────────────────────────────────────────────────────
     let selectedFile = null;
@@ -212,6 +228,7 @@
       closeModal();
 
       setGenerating(true);
+      showTosOverlay();
       log("Starting generation flow…");
 
       try {
@@ -243,9 +260,13 @@
 
       } catch (err) {
         console.error("[create.html] Generation flow failed:", err);
+        hideTosOverlay();
         setGenerating(false);
 
-        if (err.code === "functions/failed-precondition") {
+        if (err.code === "functions/invalid-argument" && err.message?.includes("flagged")) {
+          // Content moderation rejection — surface the AI's reason directly
+          showError(err.message);
+        } else if (err.code === "functions/failed-precondition") {
           showError("You don't have enough credits. Purchase more credits and try again.");
         } else if (err.code === "functions/unauthenticated") {
           showError("Session expired — please refresh the page and try again.");
@@ -263,6 +284,16 @@
         ? "Uploading & creating article…"
         : "⚡ Generate Article (1 credit)";
       log("setGenerating:", on);
+    }
+
+    function showTosOverlay() {
+      tosOverlay.classList.add("open");
+      log("ToS overlay shown.");
+    }
+
+    function hideTosOverlay() {
+      tosOverlay.classList.remove("open");
+      log("ToS overlay hidden.");
     }
 
     function showError(msg) {
