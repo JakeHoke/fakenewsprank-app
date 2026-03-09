@@ -2,15 +2,17 @@
  * firebase.js
  *
  * Single Firebase initialization for the entire app.
- * Import `auth` and/or `db` from this file everywhere.
+ * Import auth, db, storage, or functions from this file everywhere.
  * Never call initializeApp() anywhere else.
  *
  * Firebase Console → Project Settings → Your Apps → SDK setup and configuration
  */
 
-import { initializeApp }  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth }        from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore }   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth }         from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore }    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage }      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+import { getFunctions }    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 // ── Project config ───────────────────────────────────────────
 const firebaseConfig = {
@@ -23,10 +25,12 @@ const firebaseConfig = {
 };
 
 // ── Initialize ───────────────────────────────────────────────
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+const app       = initializeApp(firebaseConfig);
+const auth      = getAuth(app);
+const db        = getFirestore(app);
+const storage   = getStorage(app);
+const functions = getFunctions(app, "us-central1");
 
 console.log("[firebase.js] Firebase initialized.");
 
-export { app, auth, db };
+export { app, auth, db, storage, functions };

@@ -8,7 +8,7 @@
 </head>
 <body>
 
-  <!-- Loading overlay -->
+  <!-- ── Full-screen loader ──────────────────────────────────── -->
   <div id="app-loading">
     <div class="loading-spinner">
       <div class="spinner-ring"></div>
@@ -16,57 +16,266 @@
     </div>
   </div>
 
-  <!-- Protected content -->
-  <div id="app-content" style="display:none;">
+  <!-- ── Confirm: spend 1 credit ────────────────────────────── -->
+  <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <div class="modal-title" id="modal-title">Generate Article</div>
+      <div class="modal-body">
+        <span class="modal-credit-note">⚡ 1 credit will be spent</span><br />
+        This will use your reference image and prompt to generate a full satirical article
+        plus 4 candidate hero images. You can pick your favourite image on the next screen.
+      </div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="modal-confirm" class="btn btn-primary" style="width:auto;">Generate →</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- Shell injects <header> here -->
+  <!-- ── Page shell ─────────────────────────────────────────── -->
+  <div id="app-content" style="display:none">
     <div id="shell-header"></div>
 
     <main class="page-main">
+      <h1 class="page-title">Create Article</h1>
+      <p class="page-subtitle">
+        Upload a reference image, write a short prompt, and let the AI write
+        your satirical fake news article.
+      </p>
 
-      <h1 class="page-title">Create Your Article</h1>
-      <p class="page-subtitle">Build a convincing fake news story to prank your friends.</p>
+      <div class="create-card">
 
-      <!-- Coming-soon placeholder — replace with the real form when ready -->
-      <div class="coming-soon">
-        <span class="cs-icon">🛠️</span>
-        <h2>Article Builder — Coming Soon</h2>
-        <p>
-          The fake-news article generator is currently in development.
-          Check back soon to start creating your first prank article.
-        </p>
+        <!-- Error alert -->
+        <div id="create-error" class="alert alert-error"></div>
+
+        <!-- ── Reference image upload ──────────────────────── -->
+        <div class="form-group">
+          <label>Reference Image <span style="color:#c1121f">*</span></label>
+          <div id="upload-zone" class="image-upload-zone">
+            <input
+              type="file"
+              id="image-input"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+            />
+            <span class="upload-icon">📷</span>
+            <span class="upload-label">Click to upload an image</span>
+            <span class="upload-hint">JPG, PNG, or WebP — used as context for the AI</span>
+            <img id="upload-preview" class="upload-preview" alt="Preview" />
+          </div>
+        </div>
+
+        <!-- ── Prompt ──────────────────────────────────────── -->
+        <div class="form-group">
+          <label for="prompt-input">
+            Short Prompt <span style="color:#c1121f">*</span>
+          </label>
+          <textarea
+            id="prompt-input"
+            placeholder="e.g. Local man thinks he invented the wheel, neighbours disagree"
+            maxlength="400"
+          ></textarea>
+          <p style="font-size:0.78rem;color:#9898b8;margin-top:0.3rem">
+            Keep it short — one sentence is perfect.
+          </p>
+        </div>
+
+        <!-- ── Generate button ─────────────────────────────── -->
+        <button id="generate-btn" class="btn btn-primary">
+          ⚡ Generate Article (1 credit)
+        </button>
+
       </div>
-
-      <!--
-        FUTURE: Replace the coming-soon block above with the real
-        article-creation form.  Scaffold below as a starting point:
-
-        <form id="article-form">
-          <div class="form-group">
-            <label for="headline">Headline</label>
-            <input type="text" id="headline" placeholder="Enter a shocking headline…" />
-          </div>
-          <div class="form-group">
-            <label for="topic">Topic</label>
-            <input type="text" id="topic" placeholder="e.g. Local news, Politics, Sports…" />
-          </div>
-          <button type="submit" class="btn btn-primary" style="width:auto;">
-            Generate Article
-          </button>
-        </form>
-      -->
-
     </main>
   </div>
 
+  <!-- ================================================================
+       create.html script
+       Flow:
+         1. initShell() — auth gate + header + credits
+         2. Image upload → show preview
+         3. Generate button → validate → open confirm modal
+         4. Confirm → upload image to temp path → call initiateArticle callable
+         5. Redirect to /edit?id=<articleId>
+  ================================================================ -->
   <script type="module">
-    import { initShell } from "./js/app-shell.js";
+    // ── Logging ─────────────────────────────────────────────────
+    const LOG_ENABLED = true;
+    function log(...args) {
+      if (LOG_ENABLED) console.log("[create.html]", ...args);
+    }
 
-    console.log("[create.html] Initializing protected page…");
+    // ── Imports ──────────────────────────────────────────────────
+    import { initShell }   from "./js/app-shell.js";
+    import { storage, functions } from "./js/firebase.js";
+    import {
+      ref as storageRef,
+      uploadBytes,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    import {
+      httpsCallable,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
-    const user = await initShell();
+    // ── DOM refs ─────────────────────────────────────────────────
+    const imageInput    = document.getElementById("image-input");
+    const uploadZone    = document.getElementById("upload-zone");
+    const uploadPreview = document.getElementById("upload-preview");
+    const promptInput   = document.getElementById("prompt-input");
+    const generateBtn   = document.getElementById("generate-btn");
+    const errorEl       = document.getElementById("create-error");
+    const confirmModal  = document.getElementById("confirm-modal");
+    const modalCancel   = document.getElementById("modal-cancel");
+    const modalConfirm  = document.getElementById("modal-confirm");
 
-    console.log("[create.html] Page ready for:", user.email);
+    // ── State ────────────────────────────────────────────────────
+    let selectedFile = null;
+    let currentUser  = null;
+
+    // ── Init ─────────────────────────────────────────────────────
+    log("Initializing protected page…");
+    currentUser = await initShell();
+    log("Page ready for:", currentUser.email);
+
+    // ── Image upload preview ─────────────────────────────────────
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) {
+        showError("Please select a valid image file (JPG, PNG, or WebP).");
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        showError("Image must be under 10 MB.");
+        return;
+      }
+
+      selectedFile = file;
+      clearError();
+      log("Image selected:", file.name, file.type, file.size);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        uploadPreview.src = e.target.result;
+        uploadPreview.classList.add("visible");
+        uploadZone.classList.add("has-image");
+        uploadZone.querySelector(".upload-icon").style.display  = "none";
+        uploadZone.querySelector(".upload-label").style.display = "none";
+        uploadZone.querySelector(".upload-hint").style.display  = "none";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ── Generate button → validate → open modal ──────────────────
+    generateBtn.addEventListener("click", () => {
+      clearError();
+
+      if (!selectedFile) {
+        showError("Please upload a reference image before generating.");
+        return;
+      }
+
+      const prompt = promptInput.value.trim();
+      if (!prompt) {
+        showError("Please enter a short prompt describing your article idea.");
+        return;
+      }
+
+      if (prompt.length < 5) {
+        showError("Prompt is too short — give the AI something to work with.");
+        return;
+      }
+
+      log("Validation passed — opening confirm modal.");
+      openModal();
+    });
+
+    // ── Modal controls ───────────────────────────────────────────
+    function openModal() {
+      confirmModal.classList.add("open");
+    }
+
+    function closeModal() {
+      confirmModal.classList.remove("open");
+    }
+
+    modalCancel.addEventListener("click", closeModal);
+
+    // Close on overlay click
+    confirmModal.addEventListener("click", (e) => {
+      if (e.target === confirmModal) closeModal();
+    });
+
+    // ── Confirm: upload + call + redirect ────────────────────────
+    modalConfirm.addEventListener("click", async () => {
+      const prompt = promptInput.value.trim();
+      closeModal();
+
+      setGenerating(true);
+      log("Starting generation flow…");
+
+      try {
+        // 1. Upload reference image to a temp path
+        const ext      = selectedFile.name.split(".").pop().toLowerCase() || "jpg";
+        const tempPath = `temp/${currentUser.uid}/${Date.now()}/ref.${ext}`;
+        const fileRef  = storageRef(storage, tempPath);
+
+        log("Uploading image to:", tempPath);
+        await uploadBytes(fileRef, selectedFile, {
+          contentType: selectedFile.type,
+        });
+        log("Image uploaded.");
+
+        // 2. Call initiateArticle callable (server-side: deducts credit, creates doc, moves image)
+        log("Calling initiateArticle callable…");
+        const initiateArticle = httpsCallable(functions, "initiateArticle");
+        const result = await initiateArticle({
+          prompt,
+          tempPath,
+          mimeType: selectedFile.type,
+        });
+
+        const { articleId } = result.data;
+        log("Article initiated. ID:", articleId);
+
+        // 3. Redirect immediately — generateContent will be called from edit.html
+        window.location.href = `/edit?id=${articleId}`;
+
+      } catch (err) {
+        console.error("[create.html] Generation flow failed:", err);
+        setGenerating(false);
+
+        if (err.code === "functions/failed-precondition") {
+          showError("You don't have enough credits. Purchase more credits and try again.");
+        } else if (err.code === "functions/unauthenticated") {
+          showError("Session expired — please refresh the page and try again.");
+        } else {
+          showError("Something went wrong. Please try again. (" + (err.message || err.code) + ")");
+        }
+      }
+    });
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function setGenerating(on) {
+      generateBtn.disabled  = on;
+      modalConfirm.disabled = on;
+      generateBtn.textContent = on
+        ? "Uploading & creating article…"
+        : "⚡ Generate Article (1 credit)";
+      log("setGenerating:", on);
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.classList.add("visible");
+      errorEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      log("Error shown:", msg);
+    }
+
+    function clearError() {
+      errorEl.textContent = "";
+      errorEl.classList.remove("visible");
+    }
   </script>
 
 </body>

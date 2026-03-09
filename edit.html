@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Article — FakeNewsPrank</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+
+  <!-- ── Full-screen loader ──────────────────────────────────── -->
+  <div id="app-loading">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+  <!-- ── Reroll confirm modal ───────────────────────────────── -->
+  <div id="reroll-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-title">Reroll Images</div>
+      <div class="modal-body">
+        <span class="modal-credit-note">⚡ 1 credit will be spent</span><br />
+        This will generate 4 brand-new image options using the same article concepts.
+        Your current image selection will be replaced.
+      </div>
+      <div class="modal-actions">
+        <button id="reroll-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="reroll-confirm" class="btn btn-warning" style="width:auto;">Reroll →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Publish confirm modal ──────────────────────────────── -->
+  <div id="publish-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-title">Publish Article</div>
+      <div class="modal-body">
+        This will publish your article and make it publicly visible. Your selected
+        hero image will be finalised. You can still take the article down later
+        from your Published page.
+      </div>
+      <div class="modal-actions">
+        <button id="publish-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="publish-confirm" class="btn btn-success" style="width:auto;">Publish →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Page shell ─────────────────────────────────────────── -->
+  <div id="app-content" style="display:none">
+    <div id="shell-header"></div>
+
+    <!-- Two-column edit layout -->
+    <div class="edit-layout">
+
+      <!-- ─── Main: article preview ──────────────────────────── -->
+      <div class="edit-main">
+
+        <!-- Hero image — always present, starts as placeholder -->
+        <div class="hero-image-wrapper">
+          <img
+            id="hero-image"
+            class="hero-image"
+            src=""
+            alt="Article hero image"
+          />
+          <div id="hero-placeholder" class="skeleton skeleton-hero"></div>
+        </div>
+
+        <!-- Article content card -->
+        <div class="article-preview">
+          <!-- Skeleton shown while article text is loading -->
+          <div id="article-skeleton">
+            <div class="skeleton skeleton-line short" style="margin-bottom:1rem;width:80px"></div>
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-line wide"></div>
+            <div class="skeleton skeleton-line med"></div>
+            <div style="height:1rem"></div>
+            <div class="skeleton skeleton-line wide"></div>
+            <div class="skeleton skeleton-line wide"></div>
+            <div class="skeleton skeleton-line med"></div>
+            <div style="height:0.5rem"></div>
+            <div class="skeleton skeleton-line wide"></div>
+            <div class="skeleton skeleton-line wide"></div>
+            <div class="skeleton skeleton-line short"></div>
+          </div>
+
+          <!-- Rendered article — hidden until generated -->
+          <div id="article-content" style="display:none">
+            <span id="article-category" class="article-category-badge"></span>
+            <h1 id="article-title" class="article-title-preview"></h1>
+            <p  id="article-subtitle" class="article-subtitle-preview"></p>
+            <p  id="article-tagline" class="article-tagline-preview"></p>
+            <div class="article-meta">
+              <span id="article-author"></span>
+              <span>·</span>
+              <span id="article-date"></span>
+            </div>
+            <p id="article-image-caption" class="article-image-caption"></p>
+            <div id="article-body" class="article-body-preview"></div>
+            <div id="article-tags" class="article-tags-preview"></div>
+          </div>
+        </div>
+
+      </div><!-- /.edit-main -->
+
+      <!-- ─── Sidebar ────────────────────────────────────────── -->
+      <div class="edit-sidebar">
+
+        <!-- Generation status panel -->
+        <div class="sidebar-panel">
+          <div class="sidebar-panel-title">Generation Status</div>
+          <div class="gen-status-row">
+            <span>Article text</span>
+            <span id="status-article" class="gen-status-badge badge-pending">Pending…</span>
+          </div>
+          <div class="gen-status-row">
+            <span>Images (4)</span>
+            <span id="status-images" class="gen-status-badge badge-pending">Pending…</span>
+          </div>
+          <div id="status-error" class="alert alert-error" style="margin-top:0.75rem;margin-bottom:0"></div>
+        </div>
+
+        <!-- Image picker panel -->
+        <div class="sidebar-panel">
+          <div class="sidebar-panel-title">Choose Hero Image</div>
+
+          <!-- Skeleton while images are loading -->
+          <div id="thumbs-skeleton" class="image-thumbnails">
+            <div class="skeleton skeleton-thumb"></div>
+            <div class="skeleton skeleton-thumb"></div>
+            <div class="skeleton skeleton-thumb"></div>
+            <div class="skeleton skeleton-thumb"></div>
+          </div>
+
+          <!-- Rendered thumbnails — hidden until images are ready -->
+          <div id="thumbs-grid" class="image-thumbnails" style="display:none"></div>
+
+          <p class="thumbs-helper">(The image can always be updated later)</p>
+        </div>
+
+        <!-- Actions panel -->
+        <div class="sidebar-panel sidebar-actions">
+          <button
+            id="reroll-btn"
+            class="btn btn-warning"
+            title="Spend 1 credit to generate 4 new image options"
+            disabled
+          >
+            🎲 Reroll Images (1 credit)
+          </button>
+          <button id="draft-btn" class="btn btn-secondary">
+            💾 Save to Drafts
+          </button>
+          <button
+            id="publish-btn"
+            class="btn btn-success"
+            disabled
+          >
+            🚀 Publish
+          </button>
+        </div>
+
+      </div><!-- /.edit-sidebar -->
+    </div><!-- /.edit-layout -->
+  </div><!-- /#app-content -->
+
+  <!-- ================================================================
+       edit.html script
+       Flow:
+         1. initShell() — auth gate + header
+         2. Read articleId from ?id= URL param
+         3. Start Firestore onSnapshot listener → renders article as data arrives
+         4. Call generateContent callable (server does text + images, updates Firestore)
+         5. onSnapshot fires as each part completes, updating the UI live
+         6. Thumbnail click → update hero image + persist selectedImageIndex
+         7. Reroll → modal → deduct credit → regenerate images
+         8. Publish → modal → server promotes image to public → status = published
+  ================================================================ -->
+  <script type="module">
+    // ── Logging ─────────────────────────────────────────────────
+    const LOG_ENABLED = true;
+    function log(...args) {
+      if (LOG_ENABLED) console.log("[edit.html]", ...args);
+    }
+
+    // ── Imports ──────────────────────────────────────────────────
+    import { initShell }      from "./js/app-shell.js";
+    import { db, functions }  from "./js/firebase.js";
+    import {
+      doc,
+      onSnapshot,
+      updateDoc,
+      serverTimestamp,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      httpsCallable,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
+    // ── DOM refs ─────────────────────────────────────────────────
+    const heroImage       = document.getElementById("hero-image");
+    const heroPlaceholder = document.getElementById("hero-placeholder");
+    const articleSkeleton = document.getElementById("article-skeleton");
+    const articleContent  = document.getElementById("article-content");
+    const thumbsSkeleton  = document.getElementById("thumbs-skeleton");
+    const thumbsGrid      = document.getElementById("thumbs-grid");
+    const statusArticle   = document.getElementById("status-article");
+    const statusImages    = document.getElementById("status-images");
+    const statusError     = document.getElementById("status-error");
+    const rerollBtn       = document.getElementById("reroll-btn");
+    const draftBtn        = document.getElementById("draft-btn");
+    const publishBtn      = document.getElementById("publish-btn");
+    const rerollModal     = document.getElementById("reroll-modal");
+    const rerollCancel    = document.getElementById("reroll-cancel");
+    const rerollConfirm   = document.getElementById("reroll-confirm");
+    const publishModal    = document.getElementById("publish-modal");
+    const publishCancel   = document.getElementById("publish-cancel");
+    const publishConfirm  = document.getElementById("publish-confirm");
+
+    // ── State ────────────────────────────────────────────────────
+    let currentUser      = null;
+    let articleId        = null;
+    let currentData      = null;
+    let generationActive = false; // prevents double-calling generateContent
+    let unsubscribe      = null;  // Firestore listener
+
+    // ── Init ─────────────────────────────────────────────────────
+    log("Initializing protected page…");
+    currentUser = await initShell();
+    log("Page ready for:", currentUser.email);
+
+    // Read article ID from URL — e.g. /edit?id=abc123
+    const params  = new URLSearchParams(window.location.search);
+    articleId     = params.get("id");
+
+    if (!articleId) {
+      log("No articleId in URL — redirecting to /create");
+      window.location.replace("/create");
+      throw new Error("No articleId"); // halt script
+    }
+
+    log("Article ID:", articleId);
+
+    // ── Start Firestore real-time listener ────────────────────────
+    const articleRef = doc(db, "articles", articleId);
+
+    unsubscribe = onSnapshot(articleRef, (snap) => {
+      if (!snap.exists()) {
+        log("Article doc not found.");
+        showStatusError("Article not found.");
+        return;
+      }
+
+      currentData = snap.data();
+      log("Firestore snapshot received. generationStatus:", JSON.stringify(currentData.generationStatus));
+
+      renderArticle(currentData);
+    }, (err) => {
+      console.error("[edit.html] onSnapshot error:", err);
+      showStatusError("Failed to load article: " + err.message);
+    });
+
+    // ── Kick off content generation ───────────────────────────────
+    // This runs in parallel with the onSnapshot listener.
+    // The server updates Firestore as each part completes,
+    // and the listener above re-renders each time.
+    kickOffGeneration();
+
+    // ── kickOffGeneration() ──────────────────────────────────────
+    // Calls the generateContent Cloud Function.
+    // The function handles its own idempotency — safe to call if already complete.
+    async function kickOffGeneration() {
+      if (generationActive) {
+        log("kickOffGeneration: already in progress — skipping.");
+        return;
+      }
+      generationActive = true;
+      log("Calling generateContent callable…");
+
+      try {
+        const generateContent = httpsCallable(functions, "generateContent", {
+          timeout: 300000, // 5 min — generation can take a while
+        });
+        await generateContent({ articleId });
+        log("generateContent callable resolved.");
+      } catch (err) {
+        console.error("[edit.html] generateContent error:", err);
+        showStatusError("Generation failed: " + (err.message || err.code));
+      } finally {
+        generationActive = false;
+      }
+    }
+
+    // ── renderArticle() ──────────────────────────────────────────
+    // Called every time Firestore emits an update.
+    // Renders whatever fields are available; shows skeletons for the rest.
+    function renderArticle(data) {
+      const { generationStatus = {} } = data;
+
+      // ── Article text ──
+      if (generationStatus.article === "complete") {
+        renderArticleText(data);
+        setStatusBadge(statusArticle, "complete", "Complete ✓");
+      } else if (generationStatus.article === "error") {
+        setStatusBadge(statusArticle, "error", "Error ✗");
+        showStatusError("Article generation failed. " + (generationStatus.lastError || ""));
+      } else {
+        setStatusBadge(statusArticle, "pending", "Generating…");
+      }
+
+      // ── Images ──
+      if (generationStatus.images === "complete") {
+        renderThumbnails(data.imageOptions || [], data.selectedImageIndex);
+        setStatusBadge(statusImages, "complete", "Complete ✓");
+        // Enable reroll once images are loaded
+        rerollBtn.disabled = false;
+      } else if (generationStatus.images === "error") {
+        setStatusBadge(statusImages, "error", "Error ✗");
+        showStatusError("Image generation failed. " + (generationStatus.lastError || ""));
+        // Allow reroll to retry
+        rerollBtn.disabled = false;
+      } else {
+        setStatusBadge(statusImages, "pending", "Generating…");
+      }
+
+      // ── Publish button — enable when both are complete ──
+      const bothComplete = generationStatus.article === "complete"
+                        && generationStatus.images  === "complete"
+                        && data.status !== "published";
+      publishBtn.disabled = !bothComplete;
+
+      // ── Save draft always available ──
+      draftBtn.disabled = false;
+    }
+
+    // ── renderArticleText() ──────────────────────────────────────
+    function renderArticleText(data) {
+      // Hide skeleton, show content
+      articleSkeleton.style.display = "none";
+      articleContent.style.display  = "";
+
+      document.getElementById("article-category").textContent = data.category || "";
+      document.getElementById("article-title").textContent    = data.title    || "";
+
+      const subtitleEl = document.getElementById("article-subtitle");
+      if (data.subtitle) {
+        subtitleEl.textContent  = data.subtitle;
+        subtitleEl.style.display = "";
+      } else {
+        subtitleEl.style.display = "none";
+      }
+
+      document.getElementById("article-tagline").textContent = data.tagline || "";
+      document.getElementById("article-author").textContent  = "By " + (data.author || "Staff Reporter");
+
+      const ts = data.createdAt?.toDate?.() || new Date();
+      document.getElementById("article-date").textContent = ts.toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric",
+      });
+
+      document.getElementById("article-image-caption").textContent = data.imageCaption || "";
+
+      // Body paragraphs
+      const bodyEl = document.getElementById("article-body");
+      bodyEl.innerHTML = "";
+      (data.body || []).forEach((para) => {
+        const p = document.createElement("p");
+        p.textContent = para;
+        bodyEl.appendChild(p);
+      });
+
+      // Tags
+      const tagsEl = document.getElementById("article-tags");
+      tagsEl.innerHTML = "";
+      (data.tags || []).forEach((tag) => {
+        const span = document.createElement("span");
+        span.className   = "article-tag";
+        span.textContent = tag;
+        tagsEl.appendChild(span);
+      });
+
+      log("Article text rendered.");
+    }
+
+    // ── renderThumbnails() ───────────────────────────────────────
+    function renderThumbnails(imageOptions, selectedIndex) {
+      if (!imageOptions || imageOptions.length === 0) return;
+
+      // First time images load: auto-select index 0 if nothing is selected
+      let activeIndex = selectedIndex;
+      if (activeIndex === null || activeIndex === undefined) {
+        activeIndex = 0;
+        persistSelectedIndex(0);
+      }
+
+      // ── Hero image ──
+      // Swap hero from placeholder to the selected image
+      const heroUrl = imageOptions[activeIndex]?.url;
+      if (heroUrl) {
+        heroImage.src     = heroUrl;
+        heroImage.alt     = imageOptions[activeIndex]?.alt || "Article hero image";
+        heroImage.onload  = () => {
+          heroPlaceholder.style.display = "none";
+          heroImage.classList.remove("loading");
+        };
+        heroImage.onerror = () => {
+          log("Hero image failed to load:", heroUrl);
+        };
+      }
+
+      // ── Thumbnail grid ──
+      // Only rebuild thumbnails if count changed (avoid unnecessary DOM churn)
+      const needsRebuild = thumbsGrid.children.length !== imageOptions.length;
+      if (needsRebuild) {
+        thumbsSkeleton.style.display = "none";
+        thumbsGrid.style.display     = "";
+        thumbsGrid.innerHTML         = "";
+
+        imageOptions.forEach((opt, idx) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "thumb-wrapper" + (idx === activeIndex ? " selected" : "");
+          wrapper.dataset.idx = idx;
+
+          const img = document.createElement("img");
+          img.src   = opt.url;
+          img.alt   = opt.alt || `Image option ${idx + 1}`;
+
+          const label = document.createElement("span");
+          label.className   = "thumb-group-label";
+          label.textContent = opt.promptGroup ? `Group ${opt.promptGroup}` : `#${idx + 1}`;
+
+          wrapper.appendChild(img);
+          wrapper.appendChild(label);
+          thumbsGrid.appendChild(wrapper);
+
+          // Click to select thumbnail
+          wrapper.addEventListener("click", () => selectThumbnail(idx));
+        });
+
+        log("Thumbnails rendered:", imageOptions.length);
+      } else {
+        // Just update selected border
+        updateThumbSelection(activeIndex);
+      }
+    }
+
+    // ── selectThumbnail() ────────────────────────────────────────
+    function selectThumbnail(idx) {
+      if (!currentData?.imageOptions?.[idx]) return;
+
+      log("Thumbnail selected:", idx);
+
+      // Update hero image
+      const opt = currentData.imageOptions[idx];
+      heroPlaceholder.style.display = "none";
+      heroImage.src = opt.url;
+      heroImage.alt = opt.alt || "Article hero image";
+
+      // Update border
+      updateThumbSelection(idx);
+
+      // Persist to Firestore
+      persistSelectedIndex(idx);
+    }
+
+    function updateThumbSelection(activeIdx) {
+      thumbsGrid.querySelectorAll(".thumb-wrapper").forEach((el, i) => {
+        el.classList.toggle("selected", i === activeIdx);
+      });
+    }
+
+    async function persistSelectedIndex(idx) {
+      try {
+        await updateDoc(articleRef, {
+          selectedImageIndex: idx,
+          updatedAt: serverTimestamp(),
+        });
+        log("selectedImageIndex persisted:", idx);
+      } catch (err) {
+        console.error("[edit.html] persistSelectedIndex error:", err);
+      }
+    }
+
+    // ── Reroll ───────────────────────────────────────────────────
+    rerollBtn.addEventListener("click", () => rerollModal.classList.add("open"));
+    rerollCancel.addEventListener("click", () => rerollModal.classList.remove("open"));
+    rerollModal.addEventListener("click", (e) => {
+      if (e.target === rerollModal) rerollModal.classList.remove("open");
+    });
+
+    rerollConfirm.addEventListener("click", async () => {
+      rerollModal.classList.remove("open");
+      rerollBtn.disabled = true;
+
+      // Reset hero to placeholder while new images generate
+      heroPlaceholder.style.display = "";
+      heroImage.src = "";
+      heroImage.classList.add("loading");
+
+      // Reset thumbnail grid to skeleton
+      thumbsGrid.style.display     = "none";
+      thumbsSkeleton.style.display = "";
+
+      setStatusBadge(statusImages, "pending", "Regenerating…");
+      log("Calling rerollImages callable…");
+
+      try {
+        const rerollImages = httpsCallable(functions, "rerollImages", { timeout: 300000 });
+        await rerollImages({ articleId });
+        log("rerollImages complete.");
+        // onSnapshot will pick up the new imageOptions and re-render
+      } catch (err) {
+        console.error("[edit.html] rerollImages error:", err);
+        rerollBtn.disabled = false;
+
+        if (err.code === "functions/failed-precondition") {
+          showStatusError("Not enough credits to reroll.");
+        } else {
+          showStatusError("Reroll failed: " + (err.message || err.code));
+        }
+      }
+    });
+
+    // ── Save draft ───────────────────────────────────────────────
+    draftBtn.addEventListener("click", async () => {
+      draftBtn.disabled   = true;
+      draftBtn.textContent = "Saving…";
+      log("Saving draft…");
+
+      try {
+        await updateDoc(articleRef, {
+          status:    "draft",
+          updatedAt: serverTimestamp(),
+        });
+        log("Draft saved.");
+        draftBtn.textContent = "✓ Saved";
+        setTimeout(() => {
+          draftBtn.textContent = "💾 Save to Drafts";
+          draftBtn.disabled    = false;
+        }, 2000);
+      } catch (err) {
+        console.error("[edit.html] Save draft error:", err);
+        draftBtn.textContent = "Save failed";
+        draftBtn.disabled    = false;
+      }
+    });
+
+    // ── Publish ──────────────────────────────────────────────────
+    publishBtn.addEventListener("click", () => publishModal.classList.add("open"));
+    publishCancel.addEventListener("click", () => publishModal.classList.remove("open"));
+    publishModal.addEventListener("click", (e) => {
+      if (e.target === publishModal) publishModal.classList.remove("open");
+    });
+
+    publishConfirm.addEventListener("click", async () => {
+      publishModal.classList.remove("open");
+      publishBtn.disabled   = true;
+      publishBtn.textContent = "Publishing…";
+      log("Calling publishArticle callable…");
+
+      try {
+        const publishArticle = httpsCallable(functions, "publishArticle", { timeout: 60000 });
+        await publishArticle({ articleId });
+        log("Article published.");
+
+        publishBtn.textContent = "✓ Published!";
+        publishBtn.className   = "btn btn-secondary";
+
+        // Redirect to published page after a moment
+        setTimeout(() => {
+          window.location.href = "/published";
+        }, 1500);
+      } catch (err) {
+        console.error("[edit.html] publishArticle error:", err);
+        publishBtn.disabled   = false;
+        publishBtn.textContent = "🚀 Publish";
+        showStatusError("Publish failed: " + (err.message || err.code));
+      }
+    });
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function setStatusBadge(el, type, text) {
+      el.textContent = text;
+      el.className   = "gen-status-badge";
+      if (type === "complete") el.classList.add("badge-complete");
+      else if (type === "error") el.classList.add("badge-error");
+      else el.classList.add("badge-pending");
+    }
+
+    function showStatusError(msg) {
+      statusError.textContent = msg;
+      statusError.classList.add("visible");
+    }
+  </script>
+
+</body>
+</html>

@@ -8,11 +8,14 @@
       "functions/**"
     ],
     "rewrites": [
-      { "source": "/dashboard", "destination": "/dashboard.html" },
-      { "source": "/login",     "destination": "/login.html"     },
-      { "source": "/create",    "destination": "/create.html"    },
-      { "source": "/account",   "destination": "/account.html"   },
-      { "source": "/credits",   "destination": "/credits.html"   }
+      { "source": "/dashboard",  "destination": "/dashboard.html"  },
+      { "source": "/login",      "destination": "/login.html"      },
+      { "source": "/create",     "destination": "/create.html"     },
+      { "source": "/account",    "destination": "/account.html"    },
+      { "source": "/credits",    "destination": "/credits.html"    },
+      { "source": "/published",  "destination": "/published.html"  },
+      { "source": "/drafts",     "destination": "/drafts.html"     },
+      { "source": "/edit",       "destination": "/edit.html"       }
     ]
   },
   "functions": {
