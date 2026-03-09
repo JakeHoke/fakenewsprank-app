@@ -153,6 +153,20 @@
             ? `<span style="font-size:0.75rem; background:#fee2e2; color:#b91c1c; padding:0.2rem 0.5rem; border-radius:999px;">Taken Down</span>`
             : `<span style="font-size:0.75rem; background:#dcfce7; color:#15803d; padding:0.2rem 0.5rem; border-radius:999px;">Published</span>`;
 
+          const rawTitle = data.title || "Untitled";
+          
+          let publicUrl = `https://randomdailynews.com/article?id=${id}`;
+          if (data.title && data.title !== "Untitled") {
+            const safeTitle = encodeURIComponent(data.title.replace(/\s+/g, '-'));
+            publicUrl = `https://randomdailynews.com/article?title=${safeTitle}&id=${id}`;
+            
+            if (data.createdAt && data.createdAt.toDate) {
+              const d = data.createdAt.toDate();
+              const safeDate = `${d.getMonth() + 1}-${d.getDate()}-${d.getFullYear()}`;
+              publicUrl = `https://randomdailynews.com/article?title=${safeTitle}&date=${safeDate}&id=${id}`;
+            }
+          }
+
           const card = document.createElement("div");
           card.className = "card";
           card.innerHTML = `
@@ -160,14 +174,14 @@
               <span class="card-icon">📰</span>
               ${statusBadge}
             </div>
-            <h3 style="margin-bottom:0.25rem;">${escapeHtml(data.title || "Untitled")}</h3>
+            <h3 style="margin-bottom:0.25rem;">${escapeHtml(rawTitle)}</h3>
             <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.1rem;">Created: ${createdAt}</p>
             <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.1rem;">Published: ${publishedAt}</p>
             <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.75rem;">Last updated: ${lastUpdated}</p>
             <p style="font-size:0.875rem; margin-bottom:1rem;">${escapeHtml(preview)}</p>
             <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-              <a href="https://randomdailynews.com/article?id=${id}" class="btn btn-primary" style="width:auto; padding:0.4rem 0.9rem; font-size:0.85rem;">
-                View
+              <a href="${publicUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="width:auto; padding:0.4rem 0.9rem; font-size:0.85rem;">
+                View Public Article ↗
               </a>
             </div>
           `;
@@ -207,4 +221,3 @@
 
 </body>
 </html>
-
