@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drafts — FakeNewsPrank</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+
+  <!-- Loading overlay -->
+  <div id="app-loading">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+  <!-- Protected content -->
+  <div id="app-content" style="display:none;">
+
+    <!-- Shell injects <header> here -->
+    <div id="shell-header"></div>
+
+    <main class="page-main">
+
+      <h1 class="page-title">Drafts</h1>
+      <p class="page-subtitle">Articles you've saved but not yet published.</p>
+
+      <!-- Article list -->
+      <div id="articles-loading" style="margin-top:2rem; color:var(--text-muted);">
+        Loading drafts…
+      </div>
+
+      <div id="articles-empty" style="display:none; margin-top:2rem;">
+        <div class="coming-soon">
+          <span class="cs-icon">📝</span>
+          <h2>No drafts yet</h2>
+          <p>Head over to <a href="/create">Create</a> to start writing an article.</p>
+        </div>
+      </div>
+
+      <div id="articles-list" class="card-grid" style="display:none;"></div>
+
+    </main>
+  </div>
+
+  <script type="module">
+    import { initShell } from "./js/app-shell.js";
+    import { db }        from "./js/firebase.js";
+    import {
+      collection, query, where, orderBy, getDocs, doc, updateDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const LOG_ENABLED = true;
+    function log(...args) {
+      if (LOG_ENABLED) console.log("[drafts.html]", ...args);
+    }
+
+    log("Initializing protected page…");
+    const user = await initShell();
+    log("Page ready for:", user.email);
+
+    const loadingEl = document.getElementById("articles-loading");
+    const emptyEl   = document.getElementById("articles-empty");
+    const listEl    = document.getElementById("articles-list");
+
+    // ── Query Firestore: drafts authored by this user ─────────────────────────
+    try {
+      const q = query(
+        collection(db, "articles"),
+        where("authorId", "==", user.uid),
+        where("status",   "==", "draft"),
+        orderBy("createdAt", "desc")
+      );
+
+      const snap = await getDocs(q);
+      log("Drafts fetched:", snap.size);
+
+      loadingEl.style.display = "none";
+
+      if (snap.empty) {
+        emptyEl.style.display = "block";
+      } else {
+        listEl.style.display = "";
+        snap.forEach((docSnap) => {
+          const data = docSnap.data();
+          const id   = docSnap.id;
+
+          const createdAt     = formatDate(data.createdAt);
+          const lastUpdated   = formatDate(data.lastUpdated);
+
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.25rem;">
+              <span class="card-icon">📝</span>
+              <span style="font-size:0.75rem; background:var(--surface-2,#f0f0f0); padding:0.2rem 0.5rem; border-radius:999px; color:var(--text-muted);">Draft</span>
+            </div>
+            <h3 style="margin-bottom:0.25rem;">${escapeHtml(data.title || "Untitled Draft")}</h3>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.1rem;">Created: ${createdAt}</p>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.75rem;">Last updated: ${lastUpdated}</p>
+            <p style="font-size:0.875rem; margin-bottom:1rem;">
+              ${escapeHtml(data.excerpt || data.content?.slice(0, 100) || "No preview available.")}${data.content?.length > 100 ? "…" : ""}
+            </p>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+              <a href="/create?id=${id}" class="btn btn-primary" style="width:auto; padding:0.4rem 0.9rem; font-size:0.85rem;">
+                Edit
+              </a>
+              <button
+                class="btn btn-secondary publish-btn"
+                data-id="${id}"
+                style="width:auto; padding:0.4rem 0.9rem; font-size:0.85rem;"
+              >
+                Publish
+              </button>
+            </div>
+          `;
+          listEl.appendChild(card);
+        });
+
+        // ── Wire up Publish buttons ─────────────────────────────────────────
+        listEl.querySelectorAll(".publish-btn").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const articleId = btn.dataset.id;
+            btn.disabled = true;
+            btn.textContent = "Publishing…";
+            log("Publishing article:", articleId);
+
+            try {
+              await updateDoc(doc(db, "articles", articleId), { status: "published" });
+              log("Published:", articleId);
+              // Remove the card from the list
+              btn.closest(".card").remove();
+              // Show empty state if no cards remain
+              if (listEl.children.length === 0) {
+                listEl.style.display = "none";
+                emptyEl.style.display = "block";
+              }
+            } catch (err) {
+              console.error("[drafts.html] Failed to publish article:", err);
+              btn.disabled = false;
+              btn.textContent = "Publish";
+              alert("Failed to publish. Please try again.");
+            }
+          });
+        });
+      }
+    } catch (err) {
+      console.error("[drafts.html] Failed to load drafts:", err);
+      loadingEl.textContent = "Failed to load drafts. Please try refreshing.";
+    }
+
+    // ── Utility: format Firestore timestamp → readable string ────────────────
+    function formatDate(ts) {
+      if (!ts?.toDate) return "—";
+      return ts.toDate().toLocaleDateString(undefined, {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+    }
+
+    // ── Utility: escape HTML to prevent XSS ──────────────────────────────────
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+
+</body>
+</html>
