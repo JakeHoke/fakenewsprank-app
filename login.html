@@ -32,6 +32,24 @@
         <!-- Error alert -->
         <div id="error-alert" class="alert alert-error" role="alert"></div>
 
+        <!-- Email/Password Form -->
+        <form id="email-form" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+          <input type="email" id="email-input" placeholder="Email address" required class="form-input" style="padding:0.8rem; border:1px solid #ddd; border-radius:4px; font-size:1rem;" />
+          <input type="password" id="password-input" placeholder="Password" required class="form-input" style="padding:0.8rem; border:1px solid #ddd; border-radius:4px; font-size:1rem;" />
+          <button type="submit" id="email-submit-btn" class="btn btn-primary" style="margin-top:0.5rem; padding:0.8rem;">Sign In</button>
+        </form>
+
+        <div style="text-align:center; margin-bottom:1.5rem; font-size:0.9rem; color:#666;">
+          <span id="toggle-mode-text">Don't have an account?</span> 
+          <a href="#" id="toggle-mode-btn" style="color:var(--primary); font-weight:600; text-decoration:none;">Sign Up</a>
+        </div>
+
+        <div style="display:flex; align-items:center; text-align:center; margin-bottom:1.5rem;">
+          <div style="flex:1; border-bottom:1px solid #eee;"></div>
+          <span style="padding:0 1rem; color:#999; font-size:0.8rem; text-transform:uppercase;">or</span>
+          <div style="flex:1; border-bottom:1px solid #eee;"></div>
+        </div>
+
         <!-- Google sign-in button -->
         <button id="google-signin-btn" class="btn-google">
           <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -53,12 +71,24 @@
     import {
       GoogleAuthProvider,
       signInWithPopup,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const loading    = document.getElementById("app-loading");
     const content    = document.getElementById("app-content");
     const googleBtn  = document.getElementById("google-signin-btn");
     const errorAlert = document.getElementById("error-alert");
+
+    const emailForm      = document.getElementById("email-form");
+    const emailInput     = document.getElementById("email-input");
+    const passwordInput  = document.getElementById("password-input");
+    const emailSubmitBtn = document.getElementById("email-submit-btn");
+    const toggleModeBtn  = document.getElementById("toggle-mode-btn");
+    const toggleModeText = document.getElementById("toggle-mode-text");
+    const signinLabel    = document.querySelector(".auth-signin-label");
+
+    let isSignUpMode = false;
 
     // ── Logging flag ──────────────────────────────────────────
     const LOG_ENABLED = true;
@@ -80,8 +110,17 @@
 
     function setLoading(isLoading) {
       googleBtn.disabled = isLoading;
-      // Restore the icon + text when re-enabling
-      if (!isLoading) {
+      emailSubmitBtn.disabled = isLoading;
+      emailInput.disabled = isLoading;
+      passwordInput.disabled = isLoading;
+      toggleModeBtn.style.pointerEvents = isLoading ? "none" : "auto";
+      toggleModeBtn.style.opacity = isLoading ? "0.5" : "1";
+
+      if (isLoading) {
+        emailSubmitBtn.textContent = "Please wait…";
+        googleBtn.textContent = "Signing in…";
+      } else {
+        emailSubmitBtn.textContent = isSignUpMode ? "Create Account" : "Sign In";
         googleBtn.innerHTML = `
           <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -90,10 +129,55 @@
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
           Continue with Google`;
-      } else {
-        googleBtn.textContent = "Signing in…";
       }
     }
+
+    // ── Toggle Mode ───────────────────────────────────────────
+    toggleModeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      isSignUpMode = !isSignUpMode;
+      clearError();
+      if (isSignUpMode) {
+        signinLabel.textContent = "Create an account";
+        emailSubmitBtn.textContent = "Create Account";
+        toggleModeText.textContent = "Already have an account?";
+        toggleModeBtn.textContent = "Sign In";
+      } else {
+        signinLabel.textContent = "Sign in to continue";
+        emailSubmitBtn.textContent = "Sign In";
+        toggleModeText.textContent = "Don't have an account?";
+        toggleModeBtn.textContent = "Sign Up";
+      }
+    });
+
+    // ── Email/Password auth ───────────────────────────────────
+    emailForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearError();
+      
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) return;
+
+      setLoading(true);
+      log(`Email submit clicked in ${isSignUpMode ? 'signup' : 'signin'} mode`);
+
+      try {
+        let result;
+        if (isSignUpMode) {
+          result = await createUserWithEmailAndPassword(auth, email, password);
+          log("Account created:", result.user.email);
+        } else {
+          result = await signInWithEmailAndPassword(auth, email, password);
+          log("Sign-in successful:", result.user.email);
+        }
+        window.location.replace("/dashboard");
+      } catch (err) {
+        log("Email auth error:", err.code, err.message);
+        showError(mapAuthError(err.code) || err.message);
+        setLoading(false);
+      }
+    });
 
     // ── Auth gate — redirect if already signed in ─────────────
     log("Checking for existing session…");
