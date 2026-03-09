@@ -69,7 +69,7 @@
     try {
       const q = query(
         collection(db, "articles"),
-        where("authorId", "==", user.uid),
+        where("authorUid", "==", user.uid),
         where("status",   "==", "draft"),
         orderBy("createdAt", "desc")
       );
