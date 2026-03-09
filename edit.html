@@ -220,11 +220,15 @@
     const publishConfirm  = document.getElementById("publish-confirm");
 
     // ── State ────────────────────────────────────────────────────
-    let currentUser      = null;
-    let articleId        = null;
-    let currentData      = null;
-    let generationActive = false; // prevents double-calling generateContent
-    let unsubscribe      = null;  // Firestore listener
+    let currentUser        = null;
+    let articleId          = null;
+    let currentData        = null;
+    let generationActive   = false; // prevents double-calling generateContent
+    let unsubscribe        = null;  // Firestore listener
+    // localSelectedIndex is the source of truth for the UI.
+    // It is initialized once from Firestore when images first arrive,
+    // then only updated by user clicks — never overwritten by onSnapshot.
+    let localSelectedIndex = null;
 
     // ── Init ─────────────────────────────────────────────────────
     log("Initializing protected page…");
@@ -385,33 +389,24 @@
     }
 
     // ── renderThumbnails() ───────────────────────────────────────
+    // selectedIndex comes from Firestore but is only used to INITIALISE
+    // localSelectedIndex the first time images load. After that, all UI
+    // state is driven by localSelectedIndex so user clicks are never
+    // overwritten by subsequent Firestore snapshots.
     function renderThumbnails(imageOptions, selectedIndex) {
       if (!imageOptions || imageOptions.length === 0) return;
 
-      // First time images load: auto-select index 0 if nothing is selected
-      let activeIndex = selectedIndex;
-      if (activeIndex === null || activeIndex === undefined) {
-        activeIndex = 0;
-        persistSelectedIndex(0);
-      }
-
-      // ── Hero image ──
-      // Swap hero from placeholder to the selected image
-      const heroUrl = imageOptions[activeIndex]?.url;
-      if (heroUrl) {
-        heroImage.src     = heroUrl;
-        heroImage.alt     = imageOptions[activeIndex]?.alt || "Article hero image";
-        heroImage.onload  = () => {
-          heroPlaceholder.style.display = "none";
-          heroImage.classList.remove("loading");
-        };
-        heroImage.onerror = () => {
-          log("Hero image failed to load:", heroUrl);
-        };
+      // Initialise local selection once from Firestore (or default to 0)
+      const isFirstRender = localSelectedIndex === null;
+      if (isFirstRender) {
+        localSelectedIndex = (selectedIndex !== null && selectedIndex !== undefined)
+          ? selectedIndex
+          : 0;
+        log("renderThumbnails: initialising localSelectedIndex to", localSelectedIndex);
       }
 
       // ── Thumbnail grid ──
-      // Only rebuild thumbnails if count changed (avoid unnecessary DOM churn)
+      // Rebuild when the image set changes (new roll or first load)
       const needsRebuild = thumbsGrid.children.length !== imageOptions.length;
       if (needsRebuild) {
         thumbsSkeleton.style.display = "none";
@@ -420,7 +415,7 @@
 
         imageOptions.forEach((opt, idx) => {
           const wrapper = document.createElement("div");
-          wrapper.className = "thumb-wrapper" + (idx === activeIndex ? " selected" : "");
+          wrapper.className   = "thumb-wrapper" + (idx === localSelectedIndex ? " selected" : "");
           wrapper.dataset.idx = idx;
 
           const img = document.createElement("img");
@@ -435,15 +430,32 @@
           wrapper.appendChild(label);
           thumbsGrid.appendChild(wrapper);
 
-          // Click to select thumbnail
           wrapper.addEventListener("click", () => selectThumbnail(idx));
         });
 
         log("Thumbnails rendered:", imageOptions.length);
-      } else {
-        // Just update selected border
-        updateThumbSelection(activeIndex);
+
+        // Set hero image only when thumbnails are first built
+        applyHeroImage(imageOptions, localSelectedIndex);
       }
+      // If not rebuilding, the UI is already correct from the last selectThumbnail() call.
+      // Do NOT touch the hero image or border — those are owned by local state.
+    }
+
+    // ── applyHeroImage() ─────────────────────────────────────────
+    // Updates the hero <img> src. Called on first thumbnail render and on
+    // every user thumbnail click. Never called from onSnapshot after init.
+    function applyHeroImage(imageOptions, idx) {
+      const opt = imageOptions?.[idx];
+      if (!opt?.url) return;
+      heroImage.src    = opt.url;
+      heroImage.alt    = opt.alt || "Article hero image";
+      heroImage.onload = () => {
+        heroPlaceholder.style.display = "none";
+        heroImage.classList.remove("loading");
+      };
+      heroImage.onerror = () => log("Hero image failed to load:", opt.url);
+      log("applyHeroImage: idx", idx, "url", opt.url.substring(0, 60));
     }
 
     // ── selectThumbnail() ────────────────────────────────────────
@@ -452,16 +464,16 @@
 
       log("Thumbnail selected:", idx);
 
+      // Update local state immediately — this is the source of truth
+      localSelectedIndex = idx;
+
       // Update hero image
-      const opt = currentData.imageOptions[idx];
-      heroPlaceholder.style.display = "none";
-      heroImage.src = opt.url;
-      heroImage.alt = opt.alt || "Article hero image";
+      applyHeroImage(currentData.imageOptions, idx);
 
       // Update border
       updateThumbSelection(idx);
 
-      // Persist to Firestore
+      // Persist to Firestore (best-effort — UI does not depend on success)
       persistSelectedIndex(idx);
     }
 
@@ -493,6 +505,9 @@
     rerollConfirm.addEventListener("click", async () => {
       rerollModal.classList.remove("open");
       rerollBtn.disabled = true;
+
+      // Reset local selection so the new image set auto-initializes
+      localSelectedIndex = null;
 
       // Reset hero to placeholder while new images generate
       heroPlaceholder.style.display = "";
