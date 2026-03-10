@@ -47,10 +47,11 @@
 
   <script type="module">
     import { initShell } from "./js/app-shell.js";
-    import { db }        from "./js/firebase.js";
+    import { db, functions } from "./js/firebase.js";
     import {
-      collection, query, where, orderBy, getDocs, doc, updateDoc
+      collection, query, where, orderBy, getDocs
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
     const LOG_ENABLED = true;
     function log(...args) {
@@ -125,10 +126,11 @@
             const articleId = btn.dataset.id;
             btn.disabled = true;
             btn.textContent = "Publishing…";
-            log("Publishing article:", articleId);
+            log("Publishing article via publishArticle callable:", articleId);
 
             try {
-              await updateDoc(doc(db, "articles", articleId), { status: "published" });
+              const publishArticle = httpsCallable(functions, "publishArticle", { timeout: 60000 });
+              await publishArticle({ articleId });
               log("Published:", articleId);
               // Remove the card from the list
               btn.closest(".card").remove();
@@ -141,7 +143,10 @@
               console.error("[drafts.html] Failed to publish article:", err);
               btn.disabled = false;
               btn.textContent = "Publish";
-              alert("Failed to publish. Please try again.");
+              const msg = err.code === "functions/failed-precondition"
+                ? (err.message || "Article must have text and images generated. Open Edit first.")
+                : "Failed to publish. Please try again.";
+              alert(msg);
             }
           });
         });
